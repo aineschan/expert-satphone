@@ -338,6 +338,13 @@ static const int kDefaultTheme = 0;
 
 /** @ghidraAddress 0x83cc */
 - (void)loginGameCenter {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. The game is being run without its online services;
+    // Game Center authentication can present a sign-in controller during the logo-to-title
+    // transition. Disable Game Center in this build so local play never waits on that UI.
+    [self disableGameCenter];
+    return;
+#endif
     if (!_gameCenterAvailable) {
         return;
     }
