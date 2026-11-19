@@ -1,15 +1,18 @@
 # CMakeLists.txt — jubeat plus reconstruction  (root)
 #
-# The original 3.9.11 binary (Jubeat) is arm64, so the default slice set is simply
-# arm64; add arm64e with -DIOS_ARCHS="arm64 arm64e" if your toolchain has arm64e
-# app codegen. This file builds a NATIVE iOS .app. Configure with `-G Xcode` plus
-# the leetal/ios-cmake toolchain to build the .app target from the per-directory
-# source tree:
+# The original 3.9.11 source reconstruction defaults here to the iPad 4 / iOS 10.3
+# preservation target: armv7 on the iOS device platform. The original source remains
+# reconstructed from 3.9.11; the unofficial app bundle metadata is 3.9.12.
+# For the current armv7 target configure with the leetal/ios-cmake toolchain:
 #
-#   cmake -G Xcode -DCMAKE_TOOLCHAIN_FILE=/path/to/ios.toolchain.cmake -DPLATFORM=OS64 ..
+#   cmake -B build -G Xcode -DCMAKE_TOOLCHAIN_FILE=/path/to/ios.toolchain.cmake \
+#     -DPLATFORM=OS -DARCHS=armv7 -DDEPLOYMENT_TARGET=10.3 \
+#     -DENABLE_PATCHES=ON -DAPP_VERSION=3.9.12 -DAPP_BUILD=3.9.12 \
+#     -DRESOURCES_DIR=/path/to/original/Jubeat.app
 #
-# Theos is supported too, but NOT through CMake: it has its own hand-maintained, fixed
-# Theos application Makefile under ./theos/ (build with `make -C theos`). See theos/Makefile.
+# Theos is a separate integration and is not included in this repository snapshot.
+# The CMake path below is the maintained app build; use an SDK/toolchain that still
+# contains the 32-bit iOS device support required by armv7.
 #
 # Every knob below is a CACHE entry, so ALL of them (bundle id, name, version, archs,
 # deployment target, tool paths) are overridable on the command line with -D<name>=..
@@ -23,10 +26,10 @@ option(BUILD_DOCS "Build documentation." OFF)
 option(BUILD_DOCS_ONLY "Build documentation only." OFF)
 
 if(BUILD_DOCS_ONLY)
-    project(JubeatPlus VERSION 3.9.11 LANGUAGES NONE)
+    project(JubeatPlus VERSION 3.9.12 LANGUAGES NONE)
 else()
     project(JubeatPlus
-            VERSION 3.9.11
+            VERSION 3.9.12
             LANGUAGES C CXX OBJC OBJCXX)
 endif()
 
@@ -81,20 +84,22 @@ endif()
 # ---------------------------------------------------------------------------
 # User-facing options (all overridable via -D...)
 # ---------------------------------------------------------------------------
-set(IOS_ARCHS "arm64" CACHE STRING "Space-separated architecture slices")
-# The shipped binary's Info.plist declares MinimumOSVersion 11.0.
-set(IOS_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum iOS version")
+set(IOS_ARCHS "armv7" CACHE STRING "Space-separated architecture slices")
+# iPad 4 / iOS 10.3.4 target. The deployment target is the iOS release family,
+# so 10.3 is the correct minimum value for an iOS 10.3.4 device.
+set(IOS_DEPLOYMENT_TARGET "10.3" CACHE STRING "Minimum iOS version")
 if(DEFINED DEPLOYMENT_TARGET)                 # leetal/ios-cmake spelling
     set(IOS_DEPLOYMENT_TARGET "${DEPLOYMENT_TARGET}")
 endif()
 
 set(XCODE_PATH ""            CACHE PATH "Path to Xcode developer dir (blank = xcode-select)")
 
-# Defaults mirror the shipped Info.plist: bundle id jp.konami.jubeatplus, version 3.9.11.
+# Defaults for the unofficial 3.9.12 bundle; keep the original bundle ID so restored
+# app-container data and the existing AppSync-installed package remain addressable.
 set(APP_BUNDLE_ID    "jp.konami.jubeatplus" CACHE STRING "CFBundleIdentifier")
 set(APP_DISPLAY_NAME "jubeat plus"          CACHE STRING "CFBundleDisplayName")
-set(APP_VERSION      "3.9.11"               CACHE STRING "CFBundleShortVersionString")
-set(APP_BUILD        "3.9.11"               CACHE STRING "CFBundleVersion")
+set(APP_VERSION      "3.9.12"               CACHE STRING "CFBundleShortVersionString")
+set(APP_BUILD        "3.9.12"               CACHE STRING "CFBundleVersion")
 set(RESOURCES_DIR    "" CACHE PATH "Directory of the ORIGINAL extracted .app whose resources "
                                    "(images, sounds, data files, fonts, ...) are copied "
                                    "verbatim into the built bundle. Leave empty to build code only.")
