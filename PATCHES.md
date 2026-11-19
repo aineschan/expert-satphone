@@ -432,3 +432,20 @@ filtered every such entry without checking whether its marker archive had since 
 version says installed or `+checkMarkerData:` confirms that its archive is present and passes the
 trailing MD5 check. Missing marker files stay out of the picker. This makes restored local markers
 visible without pretending that absent server downloads exist.
+
+
+## iPad 4 / iOS 10.3.4 target and unofficial 3.9.12 build
+
+**Files:** `CMakeLists.txt`, `.github/workflows/build.yml`.
+
+The previous defaults and workflow targeted an arm64-only device build with an iOS 11/12
+minimum, which cannot run on the 32-bit iPad 4. The unofficial branch now defaults to the
+`armv7` device architecture, an iOS 10.3 deployment target, and bundle version/build
+`3.9.12`. Its CMake toolchain platform is `OS` (device), not `OS64` (arm64-only).
+
+The workflow performs an explicit compiler smoke test for `armv7` and iOS 10.3 before
+configuration, and verifies the resulting binary architecture and plist before packaging.
+If the current hosted Xcode/SDK no longer contains the legacy 32-bit device support, that
+smoke test fails early instead of uploading an incompatible arm64 IPA. A build also requires
+the original extracted `Jubeat.app` resources via the repository Actions variable
+`RESOURCES_DIR`; without those files, the source tree intentionally produces code only.
