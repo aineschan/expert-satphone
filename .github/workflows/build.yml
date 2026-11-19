@@ -2,36 +2,37 @@ concurrency:
   cancel-in-progress: true
   group: build-${{ github.ref }}
 env:
-  # Debug so the artefact carries DWARF and can be debugged on device. This is the compile gate,
-  # not a shipping build, and the reconstruction is verified against the binary by reading rather
-  # than by running an optimised build.
-  BUILD_CONFIG: 'Debug'
+  BUILD_CONFIG: 'Release'
   IOS_CMAKE_REF: '21598aa550701d20654c032328f7e8710a14099b'
 jobs:
   xcode:
-    name: 'Build'
+    name: 'Build iPad 4 / iOS 10.3.4 (armv7)'
     permissions:
       attestations: write
-      contents: write
+      contents: read
       id-token: write
     runs-on: macos-15
     env:
-      IOS_ARCHS: 'arm64'
-      DEPLOYMENT_TARGET: '12.0'
-      # RESOURCES_DIR: ${{ vars.RESOURCES_DIR }}
+      IOS_ARCHS: 'armv7'
+      DEPLOYMENT_TARGET: '10.3'
     steps:
       - uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: 'Toolchain versions'
+      - name: 'Toolchain versions and legacy architecture check'
         run: |
           xcodebuild -version
           sw_vers
+          SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
+          echo "iPhoneOS SDK: $SDKROOT"
+          xcrun --sdk iphoneos clang -arch armv7 -miphoneos-version-min=10.3 -fsyntax-only -x c /dev/null
       - name: 'Fetch ios-cmake toolchain'
         run: |
           git clone --revision="$IOS_CMAKE_REF" https://github.com/leetal/ios-cmake.git .ios-cmake
       - name: 'Configure'
+        env:
+          RESOURCES_DIR: ${{ vars.RESOURCES_DIR }}
         run: |
           CMAKE_ARGS=(
             -B build
@@ -41,7 +42,10 @@ jobs:
             -DDEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
             -DENABLE_BITCODE=NO
             -DIOS_ARCHS="$IOS_ARCHS"
-            -DPLATFORM=OS64
+            -DPLATFORM=OS
+            -DARCHS="$IOS_ARCHS"
+            -DAPP_VERSION=3.9.12
+            -DAPP_BUILD=3.9.12
             -DENABLE_PATCHES=ON
             -DJBDBG=ON
           )
@@ -50,96 +54,38 @@ jobs:
       - name: 'Build'
         run: |
           cmake --build build --config "$BUILD_CONFIG" -- \
-            -IDEBuildingContinueBuildingAfterErrors=YES \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER=""
-      - name: 'Ad-hoc sign + package .ipa'
+      - name: 'Verify architecture and package IPA'
         run: |
           APP="$(find build -type d -name 'Jubeat.app' -print -quit)"
           test -n "$APP" || { echo "Jubeat.app not found under build/"; exit 1; }
-          echo "Built app: $APP"
+          BIN="$APP/Jubeat"
+          lipo -info "$BIN"
+          lipo -verify_arch armv7 "$BIN"
+          /usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist"
           codesign --force --sign - --timestamp=none "$APP"
           codesign --verify --verbose=2 "$APP"
-          # dwarf-with-dsym leaves the linked binary holding only a debug map naming .o files from
-          # the build machine, so the app alone cannot be debugged: the DWARF is in the .dSYM, and
-          # it ships inside the bundle so a single download carries both. That invalidates the
-          # ad-hoc signature above, which does not matter here because the .ipa is re-signed with
-          # Impactor before it reaches a device.
-          DSYM="$(find build -type d -name 'Jubeat.app.dSYM' -print -quit)"
-          test -n "$DSYM" || { echo 'no .dSYM found; the build is not emitting debug info'; exit 1; }
-          rm -rf Payload Jubeat-adhoc.ipa
+          rm -rf Payload Jubeat-3.9.12-armv7-adhoc.ipa
           mkdir -p Payload
           cp -R "$APP" Payload/
-          cp -R "$DSYM" "Payload/$(basename "$APP")/"
-          /usr/bin/zip -qry Jubeat-adhoc.ipa Payload
-          echo "Packaged: Jubeat-adhoc.ipa (the .dSYM is inside the bundle)"
+          /usr/bin/zip -qry Jubeat-3.9.12-armv7-adhoc.ipa Payload
       - name: 'Upload .ipa'
         uses: 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9'
         with:
-          name: 'Jubeat-adhoc-ipa'
-          path: 'Jubeat-adhoc.ipa'
+          name: 'jubeat-plus-unofficial-3.9.12-armv7-ipa'
+          path: 'Jubeat-3.9.12-armv7-adhoc.ipa'
           if-no-files-found: 'error'
-  release:
-    if: "github.ref_type == 'tag'"
-    name: 'Release'
-    permissions:
-      contents: write
-    runs-on: macos-15
-    env:
-      IOS_ARCHS: 'arm64'
-      DEPLOYMENT_TARGET: '12.0'
-    steps:
-      - uses: 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
-        with:
-          persist-credentials: false
-      - name: 'Fetch ios-cmake toolchain'
-        run: |
-          git clone --revision="$IOS_CMAKE_REF" https://github.com/leetal/ios-cmake.git .ios-cmake
-      - name: 'Configure'
-        run: |
-          cmake -B build -G Xcode \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE}/.ios-cmake/ios.toolchain.cmake" \
-            -DDEPLOYMENT_TARGET="$DEPLOYMENT_TARGET" \
-            -DENABLE_BITCODE=NO \
-            -DIOS_ARCHS="$IOS_ARCHS" \
-            -DPLATFORM=OS64 \
-            -DENABLE_PATCHES=ON
-      - name: 'Build'
-        run: |
-          cmake --build build --config Release -- \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=NO \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER=""
-      - name: 'Ad-hoc sign + package .ipa'
-        run: |
-          APP="$(find build -type d -name 'Jubeat.app' -print -quit)"
-          test -n "$APP" || { echo "Jubeat.app not found under build/"; exit 1; }
-          codesign --force --sign - --timestamp=none "$APP"
-          codesign --verify --verbose=2 "$APP"
-          mkdir -p Payload
-          cp -R "$APP" Payload/
-          /usr/bin/zip -qry "Jubeat-${GITHUB_REF_NAME}.ipa" Payload
-      - name: 'Upload to draft release'
-        env:
-          GH_REPO: '${{ github.repository }}'
-          GH_TOKEN: '${{ github.token }}'
-        run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
-            gh release create "$GITHUB_REF_NAME" --draft --notes '' --title "$GITHUB_REF_NAME" \
-              --verify-tag
-          gh release upload "$GITHUB_REF_NAME" "Jubeat-${GITHUB_REF_NAME}.ipa" --clobber
 name: 'build'
 'on':
+  workflow_dispatch:
   push:
-    branches: ['master']
+    branches: ['master', 'ios1034-offline-editorid-fallback']
     tags:
       - 'v*.*.*'
   pull_request:
