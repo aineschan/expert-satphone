@@ -138,7 +138,11 @@ static const NSUInteger kMarkerNumberRangeLength = 4;
     NSMutableArray<NSDictionary<NSString *, NSString *> *> *current = [[NSMutableArray alloc] init];
     NSArray<NSDictionary<NSString *, NSString *> *> *list = [self getMarkerList];
     for (NSDictionary<NSString *, NSString *> *info in list) {
-        if (![info[kMarkerInfoKeyVersion] isEqualToString:kVersionUninstalled]) {
+        // A restored official marker archive is usable even if the old server-download flow never
+        // promoted its persisted version from 0.0.0. Do not expose missing archives: checkMarkerData
+        // verifies that the ZIP exists and, when present, its trailing MD5 digest.
+        if (![info[kMarkerInfoKeyVersion] isEqualToString:kVersionUninstalled] ||
+            [self checkMarkerData:info[kMarkerInfoKeyMarkerID]]) {
             [current addObject:info];
         }
     }
