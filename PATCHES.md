@@ -404,3 +404,19 @@ over the game. In `ENABLE_PATCHES` builds, this method disables Game Center and 
 installing the authentication handler, keeping the local title and music-select flow usable without
 network access. Leaderboards and other Game Center features are consequently unavailable in this
 mode. Faithful builds retain the original authentication path.
+
+### Offline first-launch title policy and Editor-ID fallback
+
+**Files:** `Project/TitleViewControllerOrg.m`, `Project/TitleViewControllerRpl.m`,
+`Project/TitleViewControllerKnt.m`, and `Project/NteTitleCoreController.m` —
+`-agreementError:msgStr:` and `-errorIDDownload:msgStr:`.
+
+_Dead service._ The title's first-use path first provisions an Editor ID through jubeat Lab and
+then fetches the challenge-policy revision through `SessionDownloader`. When either endpoint
+cannot answer, the original title controller leaves the player at the title and displays
+"初期起動時のみ通信が必須となります。". Patched builds use the controllers' existing
+`-agreementSuccess:` teardown to remove the policy sheet and cover and continue to local music
+selection. An Editor-ID provisioning failure takes the same local transition. No policy revision,
+Editor ID, or password is fabricated or written to Keychain. Store purchases, score submission,
+challenge mode, and other authenticated online functions remain unavailable. Faithful builds retain
+the original server-gated flow.
