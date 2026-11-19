@@ -1295,7 +1295,7 @@ static NSString *const kKonamiURL = @"http://www.konami.jp/";
     // remain unavailable and are not reported as successful.
     (void)msg;
     idManager = nil;
-    [self endStore];
+    [JubeatAppDelegate.appDelegate.rootViewCtrl endStore];
 #else
     if (!msg || [msg isEqualToString:kEmptyValue]) {
         msg = [NSBundle.mainBundle localizedStringForKey:kLocKeyNetworkErrorMessage
