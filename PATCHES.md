@@ -393,3 +393,14 @@ the local music-select screen through the existing store-close transition. No sy
 or password is written to the keychain. Store purchases, downloads, and other authenticated online
 operations remain unavailable; this patch only prevents the failed account-provisioning flow from
 trapping the local game. Faithful builds retain the original error overlay.
+
+### Offline Game Center authentication
+
+**File:** `Project/JubeatAppDelegate.m` — `-loginGameCenter`.
+
+_Offline mode._ The logo-to-title transition calls Game Center authentication when the local player
+is not already authenticated. GameKit may return a sign-in view controller, which the app presents
+over the game. In `ENABLE_PATCHES` builds, this method disables Game Center and returns before
+installing the authentication handler, keeping the local title and music-select flow usable without
+network access. Leaderboards and other Game Center features are consequently unavailable in this
+mode. Faithful builds retain the original authentication path.
