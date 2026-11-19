@@ -343,8 +343,8 @@ static const int kDefaultTheme = 0;
     // Game Center authentication can present a sign-in controller during the logo-to-title
     // transition. Disable Game Center in this build so local play never waits on that UI.
     [self disableGameCenter];
-    return;
-#endif
+    // Do not fall through to the original authentication code in this build.
+#else
     if (!_gameCenterAvailable) {
         return;
     }
@@ -365,6 +365,7 @@ static const int kDefaultTheme = 0;
           [JubeatAppDelegate.appDelegate disableGameCenter];
       }
     }];
+#endif
 }
 
 /** @ghidraAddress 0x8550 */
