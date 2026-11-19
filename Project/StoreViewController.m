@@ -1288,6 +1288,15 @@ static NSString *const kKonamiURL = @"http://www.konami.jp/";
 
 /** @ghidraAddress 0x89cd4 */
 - (void)errorIDDownload:(id)manager msgStr:(NSString *)msg {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. Editor-ID provisioning is hosted by the retired
+    // jubeat Lab service. Do not fabricate credentials or leave the player trapped behind the
+    // dead-service overlay: return to the local music-select screen. Authenticated store actions
+    // remain unavailable and are not reported as successful.
+    (void)msg;
+    idManager = nil;
+    [JubeatAppDelegate.appDelegate.rootViewCtrl endStore];
+#else
     if (!msg || [msg isEqualToString:kEmptyValue]) {
         msg = [NSBundle.mainBundle localizedStringForKey:kLocKeyNetworkErrorMessage
                                                    value:kEmptyValue
@@ -1304,8 +1313,8 @@ static NSString *const kKonamiURL = @"http://www.konami.jp/";
     usrPolicyView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:kCoverAlpha];
     [self.view addSubview:usrPolicyView];
     [self dispErrorLabel:msg];
+#endif
 }
-
 #pragma mark - Mission achievement
 
 /** @ghidraAddress 0x901e0 */

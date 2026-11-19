@@ -381,3 +381,71 @@ activity, and add-only photo library access has required `NSPhotoLibraryAddUsage
 iOS 11. The original plist has no photo library key because the binary never touches the library, so
 without the substitution iOS terminates the app as soon as that activity is chosen. It is
 substituted the same way as the appearance key above and is likewise empty in a faithful build.
+
+### Offline return after Editor-ID provisioning failure
+
+**File:** `Project/StoreViewController.m` — `-errorIDDownload:msgStr:`.
+
+_Dead service._ Opening the store without a provisioned Editor ID starts the jubeat Lab UID
+provisioning request. If that retired service cannot answer, the original delegate callback creates
+a full-screen network-error overlay and leaves the user in the store. Patched builds now return to
+the local music-select screen through the existing store-close transition. No synthetic Editor ID
+or password is written to the keychain. Store purchases, downloads, and other authenticated online
+operations remain unavailable; this patch only prevents the failed account-provisioning flow from
+trapping the local game. Faithful builds retain the original error overlay.
+
+### Offline Game Center authentication
+
+**File:** `Project/JubeatAppDelegate.m` — `-loginGameCenter`.
+
+_Offline mode._ The logo-to-title transition calls Game Center authentication when the local player
+is not already authenticated. GameKit may return a sign-in view controller, which the app presents
+over the game. In `ENABLE_PATCHES` builds, this method disables Game Center and returns before
+installing the authentication handler, keeping the local title and music-select flow usable without
+network access. Leaderboards and other Game Center features are consequently unavailable in this
+mode. Faithful builds retain the original authentication path.
+
+### Offline first-launch title policy and Editor-ID fallback
+
+**Files:** `Project/TitleViewControllerOrg.m`, `Project/TitleViewControllerRpl.m`,
+`Project/TitleViewControllerKnt.m`, and `Project/NteTitleCoreController.m` —
+`-agreementError:msgStr:` and `-errorIDDownload:msgStr:`.
+
+_Dead service._ The title's first-use path first provisions an Editor ID through jubeat Lab and
+then fetches the challenge-policy revision through `SessionDownloader`. When either endpoint
+cannot answer, the original title controller leaves the player at the title and displays
+"初期起動時のみ通信が必須となります。". Patched builds use the controllers' existing
+`-agreementSuccess:` teardown to remove the policy sheet and cover and continue to local music
+selection. An Editor-ID provisioning failure takes the same local transition. No policy revision,
+Editor ID, or password is fabricated or written to Keychain. Store purchases, score submission,
+challenge mode, and other authenticated online functions remain unavailable. Faithful builds retain
+the original server-gated flow.
+
+### Show restored official marker archives in the marker picker
+
+**File:** `Project/MarkerManager.m` — `+getCurrentMarkerList` (0x1b7a04).
+
+_Offline restoration._ The Preferences marker list retains the server-era version value
+`0.0.0` for a marker that was never downloaded through the retired store. The binary previously
+filtered every such entry without checking whether its marker archive had since been restored into
+`Library/Private Documents/marker`. Patched builds now include an entry when either its stored
+version says installed or `+checkMarkerData:` confirms that its archive is present and passes the
+trailing MD5 check. Missing marker files stay out of the picker. This makes restored local markers
+visible without pretending that absent server downloads exist.
+
+
+## iPad 4 / iOS 10.3.4 target and unofficial 3.9.12 build
+
+**Files:** `CMakeLists.txt`, `.github/workflows/build.yml`.
+
+The previous defaults and workflow targeted an arm64-only device build with an iOS 11/12
+minimum, which cannot run on the 32-bit iPad 4. The unofficial branch now defaults to the
+`armv7` device architecture, an iOS 10.3 deployment target, and bundle version/build
+`3.9.12`. Its CMake toolchain platform is `OS` (device), not `OS64` (arm64-only).
+
+The workflow performs an explicit compiler smoke test for `armv7` and iOS 10.3 before
+configuration, and verifies the resulting binary architecture and plist before packaging.
+If the current hosted Xcode/SDK no longer contains the legacy 32-bit device support, that
+smoke test fails early instead of uploading an incompatible arm64 IPA. A build also requires
+the original extracted `Jubeat.app` resources via the repository Actions variable
+`RESOURCES_DIR`; without those files, the source tree intentionally produces code only.

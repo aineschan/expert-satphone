@@ -932,6 +932,13 @@ static const float kNextSceneBlinkRepeatCount = 10.0f;
 
 /** @ghidraAddress 0x1d1f8c */
 - (void)agreementError:(id)manager msgStr:(NSString *)msgStr {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. The first-launch challenge-policy endpoint is no
+    // longer available. Follow the existing success teardown so local play can enter music select.
+    // This does not write a policy revision or create an Editor ID.
+    (void)msgStr;
+    [self agreementSuccess:manager];
+#else
     if (msgStr == nil || [msgStr isEqualToString:@""]) {
         msgStr = [NSBundle.mainBundle localizedStringForKey:kNetworkErrorMsgKey
                                                       value:@""
@@ -950,8 +957,8 @@ static const float kNextSceneBlinkRepeatCount = 10.0f;
     licenseAgree = nil;
     [coverView removeFromSuperview];
     coverView = nil;
+#endif
 }
-
 /** @ghidraAddress 0x1d2168 */
 - (void)agreementSuccess:(id)sender {
     [licenseAgree removeFromSuperview];
@@ -971,6 +978,18 @@ static const float kNextSceneBlinkRepeatCount = 10.0f;
 
 /** @ghidraAddress 0x1d2248 */
 - (void)errorIDDownload:(id)manager msgStr:(NSString *)msgStr {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. Editor-ID provisioning is a retired online service.
+    // Continue to local music select without fabricating or storing credentials.
+    (void)manager;
+    (void)msgStr;
+    idManager = nil;
+    [licenseAgree removeFromSuperview];
+    licenseAgree = nil;
+    [coverView removeFromSuperview];
+    coverView = nil;
+    [self nextScene];
+#else
     if (msgStr == nil || [msgStr isEqualToString:@""]) {
         msgStr = [NSBundle.mainBundle localizedStringForKey:kNetworkErrorMsgKey
                                                       value:@""
@@ -986,8 +1005,8 @@ static const float kNextSceneBlinkRepeatCount = 10.0f;
                                       btnText:nil
                                          show:YES];
     idManager = nil;
+#endif
 }
-
 /** @ghidraAddress 0x1d23f0 */
 - (void)successIDDownload:(id)manager {
     idManager = nil;

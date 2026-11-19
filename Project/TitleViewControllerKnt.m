@@ -1159,14 +1159,18 @@ static inline void BlitCampaignImageOntoTex(TitleViewControllerKnt *self,
 
 /** @ghidraAddress 0x188e18 */
 - (void)agreementError:(id)manager msgStr:(NSString *)msgStr {
-    // A licence already agreed to (the key is present) transitions on regardless of the error.
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. The first-launch challenge-policy endpoint is no
+    // longer available. Follow the existing success teardown so local play can enter music select.
+    // This does not write a policy revision or create an Editor ID.
+    (void)msgStr;
+    [self agreementSuccess:manager];
+#else
     if ([NSUserDefaults.standardUserDefaults valueForKey:kChallengePolicyVersionKey]) {
         [self nextScene];
         return;
     }
     NSString *ok = [NSBundle.mainBundle localizedStringForKey:kOKKey value:@"" table:nil];
-    // The binary reads neither `manager` nor `msgStr`: the body is the fixed CFString at 0x2dd500,
-    // loaded into x6 at 0x188f28 immediately before the makeAlert: send.
     [[AlertViewManager sharedManager] makeAlert:0
                                        delegate:nil
                                             tag:0
@@ -1179,8 +1183,8 @@ static inline void BlitCampaignImageOntoTex(TitleViewControllerKnt *self,
     licenseAgree = nil;
     [coverView removeFromSuperview];
     coverView = nil;
+#endif
 }
-
 /** @ghidraAddress 0x188fb8 */
 - (void)agreementSuccess:(id)sender {
     [licenseAgree removeFromSuperview];
@@ -1202,6 +1206,18 @@ static inline void BlitCampaignImageOntoTex(TitleViewControllerKnt *self,
 
 /** @ghidraAddress 0x189098 */
 - (void)errorIDDownload:(id)manager msgStr:(NSString *)msgStr {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. Editor-ID provisioning is a retired online service.
+    // Continue to local music select without fabricating or storing credentials.
+    (void)manager;
+    (void)msgStr;
+    idManager = nil;
+    [licenseAgree removeFromSuperview];
+    licenseAgree = nil;
+    [coverView removeFromSuperview];
+    coverView = nil;
+    [self nextScene];
+#else
     NSString *message = msgStr;
     if (message == nil || [message isEqualToString:@""]) {
         message = [NSBundle.mainBundle localizedStringForKey:kNetworkErrorMsgKey
@@ -1218,8 +1234,8 @@ static inline void BlitCampaignImageOntoTex(TitleViewControllerKnt *self,
                                         btnText:nil
                                            show:YES];
     idManager = nil;
+#endif
 }
-
 /** @ghidraAddress 0x189240 */
 - (void)successIDDownload:(id)manager {
     idManager = nil;

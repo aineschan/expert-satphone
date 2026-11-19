@@ -637,17 +637,23 @@ MakeRippleDriftY(double fromY, double toY, NSTimeInterval duration, NSTimeInterv
 
 /** @ghidraAddress 0x1405a0 */
 - (void)agreementError:(id)agreement msgStr:(NSString *)msgStr {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. The first-launch challenge-policy endpoint is no
+    // longer available. Follow the existing success teardown so local play can enter music select.
+    // This does not write a policy revision or create an Editor ID.
+    (void)msgStr;
+    [self agreementSuccess:agreement];
+#else
+    // Original online policy error handling.
     if ([NSUserDefaults.standardUserDefaults valueForKey:@"PrefAgreeChallengePolicyVersion"]) {
         [self nextScene];
         return;
     }
-    // The msgStr argument is discarded: the alert always shows the fixed communication-error copy.
     [[AlertViewManager sharedManager] makeAlert:0
                                        delegate:nil
                                             tag:0
                                           title:@"通信エラー"
-                                            msg:@"サーバに接続できません。\nネットワーク接続をご確"
-                                                @"認下さい。\n初期起動時のみ通信が必須となります。"
+                                            msg:@"サーバに接続できません。\nネットワーク接続をご確認下さい。\n初期起動時のみ通信が必須となります。"
                                          cancel:[NSBundle.mainBundle localizedStringForKey:@"OK"
                                                                                      value:@""
                                                                                      table:nil]
@@ -657,8 +663,8 @@ MakeRippleDriftY(double fromY, double toY, NSTimeInterval duration, NSTimeInterv
     licenseAgree = nil;
     [coverView removeFromSuperview];
     coverView = nil;
+#endif
 }
-
 /** @ghidraAddress 0x140740 */
 - (void)agreementSuccess:(id)agreement {
     [licenseAgree removeFromSuperview];
@@ -678,6 +684,18 @@ MakeRippleDriftY(double fromY, double toY, NSTimeInterval duration, NSTimeInterv
 
 /** @ghidraAddress 0x140820 */
 - (void)errorIDDownload:(id)download msgStr:(NSString *)msgStr {
+#ifdef ENABLE_PATCHES
+    // Preservation patch, not in the binary. Editor-ID provisioning is a retired online service.
+    // Continue to local music select without fabricating or storing credentials.
+    (void)download;
+    (void)msgStr;
+    idManager = nil;
+    [licenseAgree removeFromSuperview];
+    licenseAgree = nil;
+    [coverView removeFromSuperview];
+    coverView = nil;
+    [self nextScene];
+#else
     if (!msgStr || [msgStr isEqualToString:@""]) {
         msgStr = [NSBundle.mainBundle localizedStringForKey:@"NetworkErrorMsg" value:@"" table:nil];
     }
@@ -692,8 +710,8 @@ MakeRippleDriftY(double fromY, double toY, NSTimeInterval duration, NSTimeInterv
                                         btnText:nil
                                            show:YES];
     idManager = nil;
+#endif
 }
-
 /** @ghidraAddress 0x1409c8 */
 - (void)successIDDownload:(id)download {
     idManager = nil;
