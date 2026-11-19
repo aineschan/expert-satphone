@@ -420,3 +420,15 @@ selection. An Editor-ID provisioning failure takes the same local transition. No
 Editor ID, or password is fabricated or written to Keychain. Store purchases, score submission,
 challenge mode, and other authenticated online functions remain unavailable. Faithful builds retain
 the original server-gated flow.
+
+### Show restored official marker archives in the marker picker
+
+**File:** `Project/MarkerManager.m` — `+getCurrentMarkerList` (0x1b7a04).
+
+_Offline restoration._ The Preferences marker list retains the server-era version value
+`0.0.0` for a marker that was never downloaded through the retired store. The binary previously
+filtered every such entry without checking whether its marker archive had since been restored into
+`Library/Private Documents/marker`. Patched builds now include an entry when either its stored
+version says installed or `+checkMarkerData:` confirms that its archive is present and passes the
+trailing MD5 check. Missing marker files stay out of the picker. This makes restored local markers
+visible without pretending that absent server downloads exist.
