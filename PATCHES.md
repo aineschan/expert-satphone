@@ -381,3 +381,15 @@ activity, and add-only photo library access has required `NSPhotoLibraryAddUsage
 iOS 11. The original plist has no photo library key because the binary never touches the library, so
 without the substitution iOS terminates the app as soon as that activity is chosen. It is
 substituted the same way as the appearance key above and is likewise empty in a faithful build.
+
+### Offline return after Editor-ID provisioning failure
+
+**File:** `Project/StoreViewController.m` — `-errorIDDownload:msgStr:`.
+
+_Dead service._ Opening the store without a provisioned Editor ID starts the jubeat Lab UID
+provisioning request. If that retired service cannot answer, the original delegate callback creates
+a full-screen network-error overlay and leaves the user in the store. Patched builds now return to
+the local music-select screen through the existing store-close transition. No synthetic Editor ID
+or password is written to the keychain. Store purchases, downloads, and other authenticated online
+operations remain unavailable; this patch only prevents the failed account-provisioning flow from
+trapping the local game. Faithful builds retain the original error overlay.
